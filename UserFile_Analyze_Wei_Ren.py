@@ -10,8 +10,6 @@ sys.path.insert(0, str(BASE_DIR / "scresonators")) # custom module folder 2
 
 import helper_fit as hf
 import helper_misc as hm
-# import regex as re
-import re
 import matplotlib.pyplot as plt
 
 print("helper_fit   ->", hf.__file__)
@@ -25,48 +23,38 @@ data_dir = Path(r"C:\Users\user\OneDrive\Desktop\CU Boulder Life\博四上\Tony_
 if not data_dir.exists():
     raise FileNotFoundError(f"Data directory not found: {data_dir}")
 
-current_dir = data_dir
-
-# Parse folder name
-parts = re.split(r"-", current_dir.name, maxsplit=1)
-
-if len(parts) < 2:
-    raise ValueError(f"Folder name format invalid: {current_dir.name}")
-
-line_num, sample_name = parts
+line_num, sample_name = hm.parse_sample_info(data_dir)
 
 # Debug print
 print("=== Sample Info ===")
-print(f"Data directory : {current_dir}")
+print(f"Data directory : {data_dir}")
 print(f"Line number    : {line_num}")
 print(f"Sample name    : {sample_name}")
 
-# %% Define the search folder
-folder_name = 'most_recent_data'
-search_folder = current_dir / folder_name
+# %% Find every resonator folder under the data directory
+#
+# Resonator folders may live directly under data_dir, under a single
+# "most_recent_data" folder, under several temperature folders
+# (e.g. "T_13mK", "T_30mK", "T_45mK"), or under any other nesting.
+# find_resonator_dirs searches recursively so all of them get processed,
+# and get_temperature_from_path infers each resonator's temperature from
+# a "T_<value>mK" ancestor folder when present, falling back to
+# default_temperature_mK otherwise.
+default_temperature_mK = 15
 
-# Safety check
-if not search_folder.exists():
-    raise FileNotFoundError(f"Search folder not found: {search_folder}")
+chosen_resonators = hm.find_resonator_dirs(data_dir)
 
-# Only keep resonator folders
-pattern = re.compile(r"Resonator_\d+_.*GHz")
-
-chosen_resonators = [
-    x for x in search_folder.iterdir()
-    if x.is_dir() and pattern.match(x.name)
-]
-
-# Sort for reproducibility
-chosen_resonators = sorted(chosen_resonators)
+if not chosen_resonators:
+    raise FileNotFoundError(f"No resonator folders found under: {data_dir}")
 
 # Debug print
 print("=== Resonator Folders ===")
-print(f"Search folder: {search_folder}")
+print(f"Search root: {data_dir}")
 print(f"Found {len(chosen_resonators)} resonators:")
 
 for r in chosen_resonators:
-    print(f"  - {r.name}")
+    temp_mK = hm.get_temperature_from_path(r, default_mK=default_temperature_mK)
+    print(f"  - {r.relative_to(data_dir)}  (T = {temp_mK} mK)")
 
 
 # %% perform power sweep
@@ -86,13 +74,14 @@ tls_cfg = TLS_FIT_CONFIGS.get(sample_name, TLS_FIT_CONFIGS["default"])
 
 external_attenuation = 0
 internal_attenuation = -70
-temperature_mK = 15
 
 # manual_guess_res = [1640, 5830, 7.211780e9, -0.02] # [Q, Qc, f_c, phi]
 
 for resonator_path in chosen_resonators:
     print("\n==============================")
-    print(f"Processing resonator: {resonator_path.name}")
+    print(f"Processing resonator: {resonator_path.relative_to(data_dir)}")
+
+    temperature_mK = hm.get_temperature_from_path(resonator_path, default_mK=default_temperature_mK)
 
     all_resonator_csvs_paths = sorted(
         [x for x in resonator_path.glob("*GHz*.csv") if "dBm" in x.name]
@@ -116,10 +105,11 @@ for resonator_path in chosen_resonators:
 
     save_fit_dirs = [str(resonator_path), str(resonator_path)]
 
+    print(f"Temperature: {temperature_mK} mK")
     print(f"Number of files: {len(all_resonator_csvs_paths)}")
     for fname, pwr in zip(all_resonator_csvs_names, all_powers):
         print(f"  {fname} --> {pwr} dBm")
-    
+
     try:
         hf.power_sweep_fit_drv(
             sample_name=sample_name,
