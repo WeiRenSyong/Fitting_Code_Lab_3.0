@@ -1,4 +1,4 @@
-# Fitting_Code_Lab_3.0
+# Fitting_Code_Lab_3.0 (use claude code to improve the script)
 
 Power-sweep fitting pipeline for superconducting coplanar-waveguide (CPW) resonators. Given raw VNA S21 sweeps at a series of drive powers, the code fits each sweep with the Diameter Correction Method (DCM), extracts $Q_i$, $Q_c$, $Q$, and $f_c$ vs. power/photon number, and fits the resulting $Q_i(\langle n \rangle)$ curve to the standard two-level-system (TLS) loss model.
 
