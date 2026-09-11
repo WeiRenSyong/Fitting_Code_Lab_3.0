@@ -8,6 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR / "helper_scripts")) # custom module folder 1
 sys.path.insert(0, str(BASE_DIR / "scresonators")) # custom module folder 2
 
+import traceback
+
 import helper_fit as hf
 import helper_misc as hm
 import matplotlib.pyplot as plt
@@ -142,6 +144,7 @@ for resonator_path in chosen_resonators:
         )
     except Exception as e:
         print(f"[ERROR] Failed on {resonator_path.name}: {e}")
+        traceback.print_exc()
     finally:
         plt.close('all')
 
